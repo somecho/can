@@ -9,7 +9,7 @@ include(FetchContent)
 FetchContent_Declare(
   midiparser
   GIT_REPOSITORY https://github.com/somecho/MidiParser.git
-  GIT_TAG        main
+  GIT_TAG        0.2.5 
 )
 
 FetchContent_MakeAvailable(midiparser)
@@ -23,9 +23,12 @@ find_package(SDL2 REQUIRED)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
+add_compile_options("$<$<CONFIG:Debug>:-g;-Wall;-Wpedantic>")
+add_compile_options("$<$<CONFIG:Release>:-O3;-DNDEBUG;-s;-Wall;-Wpedantic>")
+
 project(can)
 
-add_executable(can src/main.cpp)
+add_executable(can src/can.cpp)
 
 target_compile_features(can PRIVATE cxx_std_23)
 
