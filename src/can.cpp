@@ -141,8 +141,7 @@ class App {
     auto rightMostNote = *std::min_element(qNotes.begin(), qNotes.end(), cmpx);
 
     uint8_t gridSizeY = highestNote.key - lowestNote.key;
-    uint32_t barSize =
-        static_cast<uint32_t>(data.tickDivision) * 4 * 4;  // 4 bars
+    uint32_t barSize = static_cast<uint32_t>(data.tickDivision) * 4 * 4;
     int gridHeight = windowHeight / (int)gridSizeY;
     float xStart = 0;
 
@@ -173,7 +172,16 @@ class App {
     }
 
     SDL_Event e;
+    float accel = 0;
+    Sint32 prevMouseWheelY = 0;
+    float trackLengthNormalized = (float)rightMostNote.timeEnd / (float)barSize;
+    float xOffsetMax = 0.0f;
+    float xOffsetMin = -(trackLengthNormalized * windowWidth - windowWidth);
+    float mouseAccelScaling = trackLengthNormalized * 0.005f;
+    float mouseAccelDamping = trackLengthNormalized / 10000.f;
+
     while (true) {
+      SDL_PollEvent(&e);
 
       SDL_SetRenderDrawColor(r.get(), 0x0, 0x0, 0x0, 0xFF);
       SDL_RenderClear(r.get());
@@ -181,21 +189,22 @@ class App {
       SDL_RenderFillRects(r.get(), rectsOffset.data(), rectsOffset.size());
       SDL_RenderPresent(r.get());
 
-      SDL_PollEvent(&e);
+      accel += (0 - accel) * mouseAccelDamping;
+      xStart += accel * mouseAccelScaling;
+      xStart = std::clamp(xStart, xOffsetMin, xOffsetMax);
+
+      for (std::tuple<SDL_Rect&, SDL_Rect&> rects :
+           std::views::zip(rects, rectsOffset)) {
+        std::get<1>(rects).x = std::get<0>(rects).x + (int)xStart;
+      }
+
       if (e.type == SDL_MOUSEWHEEL) {
-        xStart += e.wheel.y * 5;
-        // clamp beginning
-        xStart = std::min({xStart + e.wheel.y * 5, 0.0f});
-        // clamp end
-        xStart = std::max(
-            {xStart,
-             -(((float)rightMostNote.timeEnd / (float)barSize) * windowWidth -
-               windowWidth)});
-        // update rects to be drawn
-        for (std::tuple<SDL_Rect&, SDL_Rect&> rects :
-             std::views::zip(rects, rectsOffset)) {
-          std::get<1>(rects).x = std::get<0>(rects).x + (int)xStart;
+        const bool directionChanged = prevMouseWheelY != e.wheel.y;
+        if (directionChanged) {
+          accel = 0;
         }
+        accel += e.wheel.y;
+        prevMouseWheelY = e.wheel.y;
       }
       if (e.type == SDL_KEYDOWN) {
         if (e.key.keysym.sym == SDL_KeyCode::SDLK_ESCAPE ||
