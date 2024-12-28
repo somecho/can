@@ -40,10 +40,15 @@ class MidiViewer : public Viewer {
   float barSize_;
   float noteHeight_;
 
+  std::vector<SDL_FRect> gridRects_;
   std::vector<SDL_FRect> noteRects_;
   std::vector<SDL_FRect> offsetNoteRects_;
 
   void populateNotes();
+
+  /**
+   * Fills up `noteRects_` with drawable geometry based on data in `notes_`.
+   */
   void populateNoteRects();
 };
 

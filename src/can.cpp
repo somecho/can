@@ -18,6 +18,7 @@ class App {
   SDL_DisplayMode m_mode;
   std::unique_ptr<Can::Viewer> viewer;
   int width_, height_;
+  bool shouldQuit_ = false;
 
  public:
   App(std::string fileToOpen) {
@@ -42,30 +43,33 @@ class App {
         SDL_DestroyRenderer);
 
     SDL_Event e;
-    bool shouldQuit = false;
-    while (!shouldQuit) {
+    while (!shouldQuit_) {
       viewer->update();
       viewer->render(r.get());
       SDL_RenderPresent(r.get());
       SDL_PollEvent(&e);
-      switch (e.type) {
-        case SDL_MOUSEWHEEL:
-          viewer->onMouseWheel(e);
+      handleEvent(e);
+    }
+  }
+
+  void handleEvent(const SDL_Event& e) {
+    switch (e.type) {
+      case SDL_MOUSEWHEEL:
+        viewer->onMouseWheel(e);
+        break;
+      case SDL_MOUSEBUTTONDOWN:
+        viewer->onMouseDown(e);
+        break;
+      case SDL_KEYDOWN: {
+        if (e.key.keysym.sym == SDL_KeyCode::SDLK_ESCAPE ||
+            e.key.keysym.sym == SDL_KeyCode::SDLK_q) {
+          shouldQuit_ = true;
           break;
-        case SDL_MOUSEBUTTONDOWN:
-          viewer->onMouseDown(e);
-          break;
-        case SDL_KEYDOWN: {
-          if (e.key.keysym.sym == SDL_KeyCode::SDLK_ESCAPE ||
-              e.key.keysym.sym == SDL_KeyCode::SDLK_q) {
-            shouldQuit = true;
-            break;
-          }
         }
-        case SDL_QUIT:
-          shouldQuit = true;
-          break;
       }
+      case SDL_QUIT:
+        shouldQuit_ = true;
+        break;
     }
   }
 };
