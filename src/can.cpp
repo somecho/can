@@ -103,12 +103,10 @@ class Window {
 
  public:
   explicit Window(int w, int h)
-      : window(SDL_CreateWindow("can", 0, 0, w, h, FLAGS), SDL_DestroyWindow),
-        surface(SDL_GetWindowSurface(window.get()), SDL_FreeSurface) {};
+      : window(SDL_CreateWindow("can", 0, 0, w, h, FLAGS), SDL_DestroyWindow) {
+        };
 
   std::unique_ptr<SDL_Window, std::function<void(SDL_Window*)>> window;
-  std::unique_ptr<SDL_Surface, std::function<void(SDL_Surface*)>> surface;
-  void updateSurface() { SDL_UpdateWindowSurface(window.get()); }
 };
 
 class App {
@@ -159,6 +157,8 @@ class App {
     // RENDER
 
     Window w(windowWidth, windowHeight);
+    SDL_Renderer* renderer =
+        SDL_CreateRenderer(w.window.get(), -1, SDL_RENDERER_ACCELERATED);
 
     int padding = 0;
     std::vector<SDL_Rect> rects;
@@ -180,15 +180,11 @@ class App {
     SDL_Event e;
     while (true) {
 
-      SDL_FillRect(w.surface.get(), nullptr,
-                   SDL_MapRGB(w.surface->format, 0, 0, 0));
-
-      for (auto& r : rectsOffset) {
-        SDL_FillRect(w.surface.get(), &r,
-                     SDL_MapRGB(w.surface->format, 0xFF, 0xFF, 0xFF));
-      }
-
-      w.updateSurface();
+      SDL_SetRenderDrawColor(renderer, 0x0, 0x0, 0x0, 0xFF);
+      SDL_RenderClear(renderer);
+      SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+      SDL_RenderFillRects(renderer, rectsOffset.data(), rectsOffset.size());
+      SDL_RenderPresent(renderer);
 
       SDL_PollEvent(&e);
       if (e.type == SDL_MOUSEWHEEL) {
