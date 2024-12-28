@@ -26,7 +26,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 add_compile_options("$<$<CONFIG:Debug>:-g;-Wall;-Wpedantic;-Wconversion>")
 add_compile_options("$<$<CONFIG:Release>:-O3;-DNDEBUG;-s;-Wall;-Wpedantic>")
 
-project(can VERSION 0.1.0 LANGUAGES CXX)
+project(can VERSION 0.1.1 LANGUAGES CXX)
 
 add_library(canviewers
   src/can/MidiViewer.cpp

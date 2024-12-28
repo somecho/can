@@ -64,6 +64,8 @@ class App {
             e.key.keysym.sym == SDL_KeyCode::SDLK_q) {
           shouldQuit_ = true;
           break;
+        } else {
+          break;
         }
       }
       case SDL_QUIT:
