@@ -9,7 +9,7 @@ include(FetchContent)
 FetchContent_Declare(
   midiparser
   GIT_REPOSITORY https://github.com/somecho/MidiParser.git
-  GIT_TAG        0.2.5 
+  GIT_TAG        0.2.6
 )
 
 FetchContent_MakeAvailable(midiparser)
