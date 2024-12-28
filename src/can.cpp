@@ -97,22 +97,11 @@ std::vector<QuantizedNote> quantizeMIDI(const MidiParser::MidiFile& data) {
   return notes;
 }
 
-class Window {
-  static constexpr auto FLAGS =
-      SDL_WINDOW_RESIZABLE | SDL_WINDOW_UTILITY | SDL_WINDOW_RESIZABLE;
-
- public:
-  explicit Window(int w, int h)
-      : window(SDL_CreateWindow("can", 0, 0, w, h, FLAGS), SDL_DestroyWindow) {
-        };
-
-  std::unique_ptr<SDL_Window, std::function<void(SDL_Window*)>> window;
-};
+using Window = std::unique_ptr<SDL_Window, std::function<void(SDL_Window*)>>;
+using Renderer =
+    std::unique_ptr<SDL_Renderer, std::function<void(SDL_Renderer*)>>;
 
 class App {
- public:
-  App() { initSDL(); }
-  ~App() { SDL_Quit(); }
 
  private:
   void initSDL() {
@@ -122,7 +111,13 @@ class App {
     SDL_GetCurrentDisplayMode(0, &m_mode);
   }
 
+  SDL_DisplayMode m_mode;
+
  public:
+  App() { initSDL(); }
+
+  ~App() { SDL_Quit(); }
+
   void run(std::string filepath) {
     int windowWidth = m_mode.w * 0.38;
     int windowHeight = m_mode.h * 0.38;
@@ -132,9 +127,6 @@ class App {
     MidiParser::Parser parser;
     auto data = parser.parse(filepath);
     auto qNotes = quantizeMIDI(data);
-    /* std::sort(qNotes.begin(), qNotes.end(), */
-    /*           [](auto a, auto b) { return a.timeStart < b.timeStart; }); */
-    /* qNotes = std::vector(qNotes.begin(), qNotes.begin() + 500); */
 
     auto cmpy = [](const QuantizedNote& a, const QuantizedNote& b) {
       return a.key < b.key;
@@ -156,9 +148,12 @@ class App {
 
     // RENDER
 
-    Window w(windowWidth, windowHeight);
-    SDL_Renderer* renderer =
-        SDL_CreateRenderer(w.window.get(), -1, SDL_RENDERER_ACCELERATED);
+    Window w(SDL_CreateWindow("can", 0, 0, windowWidth, windowHeight,
+                              SDL_WINDOW_UTILITY),
+             SDL_DestroyWindow);
+
+    Renderer r(SDL_CreateRenderer(w.get(), -1, SDL_RENDERER_ACCELERATED),
+               SDL_DestroyRenderer);
 
     int padding = 0;
     std::vector<SDL_Rect> rects;
@@ -180,16 +175,23 @@ class App {
     SDL_Event e;
     while (true) {
 
-      SDL_SetRenderDrawColor(renderer, 0x0, 0x0, 0x0, 0xFF);
-      SDL_RenderClear(renderer);
-      SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-      SDL_RenderFillRects(renderer, rectsOffset.data(), rectsOffset.size());
-      SDL_RenderPresent(renderer);
+      SDL_SetRenderDrawColor(r.get(), 0x0, 0x0, 0x0, 0xFF);
+      SDL_RenderClear(r.get());
+      SDL_SetRenderDrawColor(r.get(), 0xFF, 0xFF, 0xFF, 0xFF);
+      SDL_RenderFillRects(r.get(), rectsOffset.data(), rectsOffset.size());
+      SDL_RenderPresent(r.get());
 
       SDL_PollEvent(&e);
       if (e.type == SDL_MOUSEWHEEL) {
         xStart += e.wheel.y * 5;
+        // clamp beginning
         xStart = std::min({xStart + e.wheel.y * 5, 0.0f});
+        // clamp end
+        xStart = std::max(
+            {xStart,
+             -(((float)rightMostNote.timeEnd / (float)barSize) * windowWidth -
+               windowWidth)});
+        // update rects to be drawn
         for (std::tuple<SDL_Rect&, SDL_Rect&> rects :
              std::views::zip(rects, rectsOffset)) {
           std::get<1>(rects).x = std::get<0>(rects).x + (int)xStart;
@@ -206,8 +208,6 @@ class App {
       }
     }
   }
-
-  SDL_DisplayMode m_mode;
 };
 
 int main(int argc, char* argv[]) {
