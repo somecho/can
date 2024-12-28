@@ -119,8 +119,8 @@ class App {
   ~App() { SDL_Quit(); }
 
   void run(std::string filepath) {
-    int windowWidth = m_mode.w * 0.38;
-    int windowHeight = m_mode.h * 0.38;
+    int windowWidth = m_mode.w * 0.48;
+    int windowHeight = m_mode.h * 0.48;
 
     // PREPARE
 
@@ -141,8 +141,8 @@ class App {
     auto rightMostNote = *std::min_element(qNotes.begin(), qNotes.end(), cmpx);
 
     uint8_t gridSizeY = highestNote.key - lowestNote.key;
-    uint32_t barSize = static_cast<uint32_t>(data.tickDivision) * 4 * 4;
-    int gridHeight = windowHeight / (int)gridSizeY;
+    int gridHeight = ceil((float)windowHeight / (float)gridSizeY);
+    uint32_t barSize = windowWidth * 6;
     float xStart = 0;
 
     // RENDER
@@ -185,8 +185,36 @@ class App {
 
       SDL_SetRenderDrawColor(r.get(), 0x0, 0x0, 0x0, 0xFF);
       SDL_RenderClear(r.get());
-      SDL_SetRenderDrawColor(r.get(), 0xFF, 0xFF, 0xFF, 0xFF);
+
+      float gh =
+          (float)windowHeight / (float)(highestNote.key - lowestNote.key + 1);
+      for (int i = 0; i <= gridSizeY; i++) {
+        int id = (i + lowestNote.key) % 12;
+        auto rt = SDL_FRect{
+            .x = 0,
+            .y = map(i, 0, gridSizeY, windowHeight - gh, 0),
+            .w = (float)windowWidth,
+            .h = (float)windowHeight /
+                 (float)(highestNote.key - lowestNote.key + 1),
+        };
+
+        if (id == 1 || id == 3 || id == 6 || id == 8 || id == 10) {
+          SDL_SetRenderDrawColor(r.get(), 5, 5, 5, 255);
+        } else {
+          SDL_SetRenderDrawColor(r.get(), 50, 50, 50, 255);
+        }
+        SDL_RenderFillRectF(r.get(), &rt);
+
+        SDL_SetRenderDrawColor(r.get(), 25, 25, 25, 255);
+        SDL_RenderDrawLineF(r.get(), 0, rt.y, windowWidth, rt.y);
+      }
+
+      SDL_SetRenderDrawColor(r.get(), 0xFF, 0xA5, 0x00, 0xFF);
       SDL_RenderFillRects(r.get(), rectsOffset.data(), rectsOffset.size());
+
+      SDL_SetRenderDrawColor(r.get(), 0, 0, 0, 255);
+      SDL_RenderDrawRects(r.get(), rectsOffset.data(), rectsOffset.size());
+
       SDL_RenderPresent(r.get());
 
       accel += (0 - accel) * mouseAccelDamping;
