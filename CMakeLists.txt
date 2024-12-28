@@ -23,12 +23,16 @@ find_package(SDL2 REQUIRED)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
-add_compile_options("$<$<CONFIG:Debug>:-g;-Wall;-Wpedantic>")
+add_compile_options("$<$<CONFIG:Debug>:-g;-Wall;-Wpedantic;-Wconversion>")
 add_compile_options("$<$<CONFIG:Release>:-O3;-DNDEBUG;-s;-Wall;-Wpedantic>")
 
 project(can)
 
-add_executable(can src/can.cpp)
+add_executable(can
+  src/can.cpp
+  src/can/MidiViewer.cpp
+  src/can/helper.cpp
+)
 
 target_compile_features(can PRIVATE cxx_std_23)
 
