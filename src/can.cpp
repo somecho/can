@@ -1,6 +1,5 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_error.h>
-#include <MidiParser/Parser.hpp>
 #include <stdexcept>
 
 #include "can/MidiViewer.hpp"

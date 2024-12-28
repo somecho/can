@@ -191,5 +191,4 @@ void MidiViewer::populateNoteRects() {
 };
 
 }  // namespace Viewers
-
 }  // namespace Can
