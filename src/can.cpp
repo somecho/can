@@ -7,7 +7,10 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <ranges>
 #include <stdexcept>
+#include <tuple>
+#include <utility>
 
 // https://github.com/openframeworks/openFrameworks/blob/0.12.0/libs/openFrameworks/math/ofMath.cpp#L78
 float map(float value, float inputMin, float inputMax, float outputMin,
@@ -122,15 +125,18 @@ class App {
   }
 
  public:
-  void run() {
+  void run(std::string filepath) {
     int windowWidth = m_mode.w * 0.38;
     int windowHeight = m_mode.h * 0.38;
 
     // PREPARE
 
     MidiParser::Parser parser;
-    auto data = parser.parse("tmp/twinkle.mid");
+    auto data = parser.parse(filepath);
     auto qNotes = quantizeMIDI(data);
+    /* std::sort(qNotes.begin(), qNotes.end(), */
+    /*           [](auto a, auto b) { return a.timeStart < b.timeStart; }); */
+    /* qNotes = std::vector(qNotes.begin(), qNotes.begin() + 500); */
 
     auto cmpy = [](const QuantizedNote& a, const QuantizedNote& b) {
       return a.key < b.key;
@@ -141,37 +147,58 @@ class App {
 
     auto highestNote = *std::max_element(qNotes.begin(), qNotes.end(), cmpy);
     auto lowestNote = *std::min_element(qNotes.begin(), qNotes.end(), cmpy);
-    /* auto leftMostNote = *std::max_element(qNotes.begin(), qNotes.end(), cmpx); */
+    auto leftMostNote = *std::max_element(qNotes.begin(), qNotes.end(), cmpx);
     auto rightMostNote = *std::min_element(qNotes.begin(), qNotes.end(), cmpx);
 
     uint8_t gridSizeY = highestNote.key - lowestNote.key;
+    uint32_t barSize =
+        static_cast<uint32_t>(data.tickDivision) * 4 * 4;  // 4 bars
     int gridHeight = windowHeight / (int)gridSizeY;
+    float xStart = 0;
 
     // RENDER
 
     Window w(windowWidth, windowHeight);
 
-    SDL_FillRect(w.surface.get(), nullptr,
-                 SDL_MapRGB(w.surface->format, 0, 0, 0));
+    int padding = 0;
+    std::vector<SDL_Rect> rects;
+    std::vector<SDL_Rect> rectsOffset;
 
     for (auto note : qNotes) {
-      SDL_Rect r{.x = (int)map(note.timeStart, 0, rightMostNote.timeEnd, 0,
-                               windowWidth, false),
-                 .y = (int)map(note.key, lowestNote.key, highestNote.key,
-                               windowHeight - gridHeight, 0) +
-                      2,
-                 .w = (int)map(note.timeEnd - note.timeStart, 0,
-                               rightMostNote.timeEnd, 0, windowWidth),
-                 .h = gridHeight - 4};
-      SDL_FillRect(w.surface.get(), &r,
-                   SDL_MapRGB(w.surface->format, 0xFF, 0xFF, 0xFF));
+      SDL_Rect r{
+          .x = (int)map(note.timeStart, 0, barSize, 0, windowWidth, false),
+          .y = (int)map(note.key, lowestNote.key, highestNote.key,
+                        windowHeight - gridHeight, 0) +
+               padding,
+          .w = (int)map(note.timeEnd - note.timeStart, 0, barSize, 0,
+                        windowWidth),
+          .h = gridHeight - (padding * 2)};
+      rects.push_back(r);
+      rectsOffset.push_back(r);
     }
-
-    w.updateSurface();
 
     SDL_Event e;
     while (true) {
+
+      SDL_FillRect(w.surface.get(), nullptr,
+                   SDL_MapRGB(w.surface->format, 0, 0, 0));
+
+      for (auto& r : rectsOffset) {
+        SDL_FillRect(w.surface.get(), &r,
+                     SDL_MapRGB(w.surface->format, 0xFF, 0xFF, 0xFF));
+      }
+
+      w.updateSurface();
+
       SDL_PollEvent(&e);
+      if (e.type == SDL_MOUSEWHEEL) {
+        xStart += e.wheel.y * 5;
+        xStart = std::min({xStart + e.wheel.y * 5, 0.0f});
+        for (std::tuple<SDL_Rect&, SDL_Rect&> rects :
+             std::views::zip(rects, rectsOffset)) {
+          std::get<1>(rects).x = std::get<0>(rects).x + (int)xStart;
+        }
+      }
       if (e.type == SDL_KEYDOWN) {
         if (e.key.keysym.sym == SDL_KeyCode::SDLK_ESCAPE ||
             e.key.keysym.sym == SDL_KeyCode::SDLK_q) {
@@ -187,7 +214,7 @@ class App {
   SDL_DisplayMode m_mode;
 };
 
-int main() {
+int main(int argc, char* argv[]) {
   App app;
-  app.run();
+  app.run(argv[1]);
 }
