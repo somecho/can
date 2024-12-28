@@ -12,6 +12,8 @@
 #include <tuple>
 #include <utility>
 
+#include "helper/heatmap.hpp"
+
 // https://github.com/openframeworks/openFrameworks/blob/0.12.0/libs/openFrameworks/math/ofMath.cpp#L78
 float map(float value, float inputMin, float inputMax, float outputMin,
           float outputMax, bool clamp = true) {
@@ -46,6 +48,7 @@ struct overload : Ts... {
 
 struct QuantizedNote {
   uint8_t key;
+  uint8_t velocity;
   uint32_t timeStart, timeEnd;
 };
 
@@ -53,13 +56,14 @@ std::vector<QuantizedNote> quantizeMIDI(const MidiParser::MidiFile& data) {
   using namespace MidiParser;
 
   std::unordered_map<uint8_t, uint32_t> noteOnTimes;
+  std::unordered_map<uint8_t, uint8_t> noteVelocity;
   std::vector<QuantizedNote> notes;
 
   for (size_t i = 0; i < data.tracks.size(); i++) {
     uint32_t currentTime = 0;
 
-    auto visitMidi = [&currentTime, &notes,
-                      &noteOnTimes](MIDIEvent& e) mutable {
+    auto visitMidi = [&currentTime, &notes, &noteOnTimes,
+                      &noteVelocity](MIDIEvent& e) mutable {
       currentTime += e.deltaTime;
       const bool hasNoteOnStatus = (e.status & 0b11110000) == 0b10010000;
       const bool hasNoteOffStatus = (e.status & 0b11110000) == 0b10000000;
@@ -75,10 +79,12 @@ std::vector<QuantizedNote> quantizeMIDI(const MidiParser::MidiFile& data) {
           (hasNoteOnStatus && velocity == 0) || hasNoteOffStatus;
 
       if (isNoteOn) {
-        noteOnTimes.insert_or_assign(e.data.at(0), currentTime);
+        noteOnTimes.insert_or_assign(key, currentTime);
+        noteVelocity.insert_or_assign(key, velocity);
       }
       if (isNoteOff) {
         notes.push_back({.key = key,
+                         .velocity = noteVelocity.at(key),
                          .timeStart = noteOnTimes.at(key),
                          .timeEnd = currentTime});
       }
@@ -93,14 +99,12 @@ std::vector<QuantizedNote> quantizeMIDI(const MidiParser::MidiFile& data) {
       std::visit(visitor, e);
     }
   }
-
   return notes;
 }
 
 using Window = std::unique_ptr<SDL_Window, std::function<void(SDL_Window*)>>;
 using Renderer =
     std::unique_ptr<SDL_Renderer, std::function<void(SDL_Renderer*)>>;
-
 class App {
 
  private:
@@ -209,11 +213,12 @@ class App {
         SDL_RenderDrawLineF(r.get(), 0, rt.y, windowWidth, rt.y);
       }
 
-      SDL_SetRenderDrawColor(r.get(), 0xFF, 0xA5, 0x00, 0xFF);
-      SDL_RenderFillRects(r.get(), rectsOffset.data(), rectsOffset.size());
-
-      SDL_SetRenderDrawColor(r.get(), 0, 0, 0, 255);
-      SDL_RenderDrawRects(r.get(), rectsOffset.data(), rectsOffset.size());
+      for (auto rects : std::views::zip(qNotes, rectsOffset)) {
+        float t = map(std::get<0>(rects).velocity, 0.f, 127.f, 0.f, 1.f);
+        auto [rc, gc, bc] = Can::helper::heatmap(t);
+        SDL_SetRenderDrawColor(r.get(), rc * 255, gc * 255, bc * 255, 0xFF);
+        SDL_RenderFillRect(r.get(), &std::get<1>(rects));
+      }
 
       SDL_RenderPresent(r.get());
 
@@ -226,6 +231,9 @@ class App {
         std::get<1>(rects).x = std::get<0>(rects).x + (int)xStart;
       }
 
+      if (e.type == SDL_MOUSEBUTTONDOWN) {
+        accel = 0;
+      }
       if (e.type == SDL_MOUSEWHEEL) {
         const bool directionChanged = prevMouseWheelY != e.wheel.y;
         if (directionChanged) {
