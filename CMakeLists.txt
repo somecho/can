@@ -12,12 +12,19 @@ FetchContent_Declare(
   GIT_TAG        0.2.6
 )
 
-FetchContent_MakeAvailable(midiparser)
-
 # # SDL2
 
-find_package(SDL2 REQUIRED)
+set(SDL_SHARED OFF CACHE INTERNAL "")
+set(SDL_STATIC ON CACHE INTERNAL "")
 
+FetchContent_Declare(
+  sdl
+  GIT_REPOSITORY https://github.com/libsdl-org/SDL
+  GIT_TAG release-2.30.10
+  GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(midiparser sdl)
 
 # PROJECT CONFIGURATIONS
 
@@ -33,7 +40,7 @@ add_library(canviewers
   src/can/helper.cpp
 )
 
-target_link_libraries(canviewers PUBLIC SDL2 MidiParser)
+target_link_libraries(canviewers PUBLIC SDL2::SDL2 MidiParser)
 set_property(TARGET canviewers PROPERTY CXX_STANDARD 23)
 set_property(TARGET canviewers PROPERTY CXX_STANDARD_REQUIRED TRUE)
 
