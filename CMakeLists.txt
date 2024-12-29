@@ -20,7 +20,7 @@ set(SDL_STATIC ON CACHE INTERNAL "")
 FetchContent_Declare(
   sdl
   GIT_REPOSITORY https://github.com/libsdl-org/SDL
-  GIT_TAG release-2.30.10
+  GIT_TAG c030e6f782d8641e7bd8c1dc2d58788cab4f2e4d
   GIT_SHALLOW TRUE
 )
 
@@ -40,7 +40,7 @@ add_library(canviewers
   src/can/helper.cpp
 )
 
-target_link_libraries(canviewers PUBLIC SDL2::SDL2 MidiParser)
+target_link_libraries(canviewers PUBLIC SDL3::SDL3 MidiParser)
 set_property(TARGET canviewers PROPERTY CXX_STANDARD 23)
 set_property(TARGET canviewers PROPERTY CXX_STANDARD_REQUIRED TRUE)
 

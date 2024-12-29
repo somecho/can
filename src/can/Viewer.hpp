@@ -1,7 +1,7 @@
 #pragma once
 
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_render.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_render.h>
 #include <string>
 
 namespace Can {

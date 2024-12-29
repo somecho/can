@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <iostream>
 #include <ranges>
 #include <unordered_map>
 
@@ -91,10 +92,10 @@ void MidiViewer::render(SDL_Renderer* renderer) {
     } else {
       SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
     }
-    SDL_RenderFillRectF(renderer, &gridRects_.at(i));
+    SDL_RenderFillRect(renderer, &gridRects_.at(i));
     SDL_SetRenderDrawColor(renderer, 25, 25, 25, 255);
-    SDL_RenderDrawLineF(renderer, 0, gridRects_.at(i).y,
-                        static_cast<float>(width_), gridRects_.at(i).y);
+    SDL_RenderLine(renderer, 0, gridRects_.at(i).y, static_cast<float>(width_),
+                   gridRects_.at(i).y);
   }
 
   // Draw Notes
@@ -104,7 +105,7 @@ void MidiViewer::render(SDL_Renderer* renderer) {
     SDL_SetRenderDrawColor(renderer, static_cast<Uint8>(rc * 255),
                            static_cast<Uint8>(gc * 255),
                            static_cast<Uint8>(bc * 255), 0xFF);
-    SDL_RenderFillRectF(renderer, &std::get<1>(rects));
+    SDL_RenderFillRect(renderer, &std::get<1>(rects));
   }
 };
 
@@ -161,10 +162,15 @@ void MidiViewer::populateNotes() {
       }
     };
 
-    auto visitor = overload{
-        visitMidi,
-        [&currentTime](MetaEvent& e) mutable { currentTime += e.deltaTime; },
-        [](SysExEvent&) { /* ignore */ }};
+    auto visitor = overload{visitMidi,
+                            [&currentTime](MetaEvent& e) mutable {
+                              currentTime += e.deltaTime;
+                              if (e.status == 0x51) {
+
+                                std::cout << "SET TEMPO" << std::endl;
+                              }
+                            },
+                            [](SysExEvent&) { /* ignore */ }};
 
     for (TrackEvent e : parsed.tracks.at(i).events) {
       std::visit(visitor, e);
