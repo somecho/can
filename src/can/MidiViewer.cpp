@@ -27,7 +27,7 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
     return a.key < b.key;
   };
   auto cmpx = [](const Viewable::MIDINote& a, const Viewable::MIDINote& b) {
-    return a.timeStart > b.timeStart;
+    return a.start > b.start;
   };
 
   // calculate bounds of viewer based on midi data
@@ -43,7 +43,7 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
   pageSize_ = static_cast<float>(width_) * 10.f;
 
   // Length of MIDI Track in terms of number of bars(pages) it can fit in
-  float trackLengthNormalized = rightMostNote_.endf / pageSize_;
+  float trackLengthNormalized = rightMostNote_.end / pageSize_;
 
   // calculate how far the track can be scrolled
   xOffsetMin_ = -(trackLengthNormalized * static_cast<float>(width_) -
@@ -181,17 +181,15 @@ void MidiViewer::populateNotes() {
         noteOnTimes.insert_or_assign(key, currentTime);
         noteVelocity.insert_or_assign(key, velocity);
       }
-      float startf = static_cast<float>(noteOnTimes.at(key)) /
-                     static_cast<float>(parsed.tickDivision) * currentTempo;
-      float endf = static_cast<float>(currentTime) /
-                   static_cast<float>(parsed.tickDivision) * currentTempo;
+      float start = static_cast<float>(noteOnTimes.at(key)) /
+                    static_cast<float>(parsed.tickDivision) * currentTempo;
+      float end = static_cast<float>(currentTime) /
+                  static_cast<float>(parsed.tickDivision) * currentTempo;
       if (isNoteOff) {
         notes_.push_back({.key = key,
                           .velocity = noteVelocity.at(key),
-                          .timeStart = noteOnTimes.at(key),
-                          .timeEnd = currentTime,
-                          .startf = startf,
-                          .endf = endf});
+                          .start = start,
+                          .end = end});
       }
     };
 
@@ -209,7 +207,7 @@ void MidiViewer::populateNotes() {
 void MidiViewer::populateNoteRects() {
   for (const auto& note : notes_) {
     SDL_FRect r{
-        .x = helper::map(note.startf, 0.f, pageSize_, 0.f,
+        .x = helper::map(note.start, 0.f, pageSize_, 0.f,
                          static_cast<float>(width_), false) +
              padding_,
         .y = helper::map(static_cast<float>(note.key),
@@ -217,7 +215,7 @@ void MidiViewer::populateNoteRects() {
                          static_cast<float>(highestNote_.key),
                          static_cast<float>(height_) - noteHeight_, 0.f) +
              padding_,
-        .w = helper::map(note.endf - note.startf, 0.f, pageSize_, 0,
+        .w = helper::map(note.end - note.start, 0.f, pageSize_, 0,
                          static_cast<float>(width_)) -
              padding_ * 2.f,
         .h = noteHeight_ - padding_ * 2.f};

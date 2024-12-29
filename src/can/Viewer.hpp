@@ -17,6 +17,8 @@ class Viewer {
   virtual void onMouseWheel(const SDL_Event& event) {};
   virtual void onMouseDown(const SDL_Event& event) {};
 
+  uint64_t frameNum = 0;
+
  protected:
   std::string fileToView_;
   int width_, height_;

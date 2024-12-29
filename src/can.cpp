@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <iostream>
 #include <stdexcept>
 
 #include "can/MidiViewer.hpp"
@@ -51,6 +52,7 @@ class App {
       if (!SDL_RenderPresent(r.get())) {
         throw std::runtime_error(SDL_GetError());
       };
+      ++viewer->frameNum;
     }
   }
 
