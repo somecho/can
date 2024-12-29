@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <ranges>
 #include <unordered_map>
@@ -65,6 +66,18 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
          .w = (float)width_,
          .h = noteHeight_});
   }
+
+  // populate gridTicks_
+  float interval = 1.f * 1000.f;  // 10 seconds
+  unsigned int numTicks =
+      static_cast<unsigned int>(std::floor(rightMostNote_.end / interval));
+  numTicks = std::max(
+      {numTicks, static_cast<unsigned int>(std::floor(pageSize_ / interval))});
+  for (auto i = 1u; i <= numTicks; i++) {
+    float x = helper::map(static_cast<float>(i) * interval, 0, pageSize_, 0,
+                          static_cast<float>(width_), false);
+    gridTicks_.emplace_back(x);
+  }
 }
 
 void MidiViewer::update() {
@@ -96,6 +109,16 @@ void MidiViewer::render(SDL_Renderer* renderer) {
     SDL_SetRenderDrawColor(renderer, 25, 25, 25, 255);
     SDL_RenderLine(renderer, 0, gridRects_.at(i).y, static_cast<float>(width_),
                    gridRects_.at(i).y);
+  }
+
+  /* for (const auto& tick : gridTicks_) { */
+  for (size_t i = 0; i < gridTicks_.size(); i++) {
+    SDL_SetRenderDrawColor(renderer, 25, 25, 25, 255);
+    if ((i + 6) % 5 == 0) {
+      SDL_SetRenderDrawColor(renderer, 70, 70, 80, 255);
+    }
+    SDL_RenderLine(renderer, gridTicks_[i] + xOffset_, 0,
+                   gridTicks_[i] + xOffset_, static_cast<float>(height_));
   }
 
   // Draw Notes
