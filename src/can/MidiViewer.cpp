@@ -115,7 +115,7 @@ void MidiViewer::onMouseWheel(const SDL_Event& event) {
     mouseAccel_ = 0.f;
   }
   prevMouseWheel_ = event.wheel.y;
-  mouseAccel_ += static_cast<float>(event.wheel.y);
+  mouseAccel_ += event.wheel.y;
 };
 
 void MidiViewer::onMouseDown(const SDL_Event& event) {
@@ -182,14 +182,14 @@ void MidiViewer::populateNoteRects() {
   for (const auto& note : notes_) {
     SDL_FRect r{
         .x = helper::map(static_cast<float>(note.timeStart), 0.f, barSize_, 0.f,
-                         static_cast<float>(width_), false),
+                         static_cast<float>(width_), false) + padding_,
         .y = helper::map(static_cast<float>(note.key),
                          static_cast<float>(lowestNote_.key),
                          static_cast<float>(highestNote_.key),
                          static_cast<float>(height_) - noteHeight_, 0.f) +
              padding_,
         .w = helper::map(static_cast<float>(note.timeEnd - note.timeStart), 0.f,
-                         barSize_, 0, static_cast<float>(width_)),
+                         barSize_, 0, static_cast<float>(width_)) - padding_ * 2.f,
         .h = noteHeight_ - padding_ * 2.f};
     noteRects_.push_back(r);
     offsetNoteRects_.push_back(r);

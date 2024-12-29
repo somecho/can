@@ -33,7 +33,7 @@ class MidiViewer : public Viewer {
    * both.e.g.The inclusive note range of an octave from C1 - C2 is 13. 
    */
   unsigned int inclusiveNoteRange_;
-  Sint32 prevMouseWheel_;
+  float prevMouseWheel_;
   float padding_;
   float xOffset_, xOffsetMax_, xOffsetMin_;
   float mouseAccel_, mouseAccelDamping_, mouseAccelScaling_;
