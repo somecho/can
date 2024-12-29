@@ -7,9 +7,9 @@
 ## Building
 
 To build this project you will need the following
+- git
 - CMake 3.30
-- C++23 Compiler 
-- SDL2 ([install instructions](https://trenki2.github.io/blog/2017/06/02/using-sdl2-with-cmake/))
+- A C++23 capable compiler
 
 Then all you need to run once you cloned this repo is
 
