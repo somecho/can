@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <iostream>
+#include <map>
 #include <ranges>
 #include <unordered_map>
 
@@ -40,10 +40,10 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
       static_cast<float>(height_) / static_cast<float>(inclusiveNoteRange_);
 
   // Page size
-  barSize_ = static_cast<float>(width_) * 6.f;
+  barSize_ = static_cast<float>(width_) * 10.f;
 
   // Length of MIDI Track in terms of number of bars(pages) it can fit in
-  float trackLengthNormalized = (float)rightMostNote_.timeEnd / (float)barSize_;
+  float trackLengthNormalized = rightMostNote_.endf / (float)barSize_;
 
   // calculate how far the track can be scrolled
   xOffsetMin_ = -(trackLengthNormalized * static_cast<float>(width_) -
@@ -130,13 +130,40 @@ void MidiViewer::populateNotes() {
 
   std::unordered_map<uint8_t, uint32_t> noteOnTimes;
   std::unordered_map<uint8_t, uint8_t> noteVelocity;
+  // tempo in milliseconds
+  std::map<uint32_t, float> tempoMap;
+
+  //populate tempoMap
+  for (size_t i = 0; i < parsed.tracks.size(); i++) {
+    uint32_t currentTime = 0;
+    for (TrackEvent e : parsed.tracks.at(i).events) {
+      if (std::holds_alternative<MetaEvent>(e)) {
+        auto meta = std::get<MetaEvent>(e);
+        currentTime += meta.deltaTime;
+        if (meta.status == 0x51) {  // Set Tempo Event
+          uint32_t tempo =
+              0u | meta.data[0] << 16 | meta.data[1] << 8 | meta.data[2];
+          float tempof = static_cast<float>(tempo) / 1000.f;
+          tempoMap.insert_or_assign(currentTime, tempof);
+        }
+      }
+    }
+  }
 
   for (size_t i = 0; i < parsed.tracks.size(); i++) {
     uint32_t currentTime = 0;
+    float currentTempo;
 
-    auto visitMidi = [&currentTime, &noteOnTimes, &noteVelocity,
-                      this](MIDIEvent& e) mutable {
+    auto visitMidi = [&currentTime, &noteOnTimes, &noteVelocity, &currentTempo,
+                      tempoMap, this, parsed](MIDIEvent& e) mutable {
       currentTime += e.deltaTime;
+      // get currentTempo;
+      for (auto i = tempoMap.begin(); i != tempoMap.end(); i++) {
+        if (currentTime >= (*i).first) {
+          currentTempo = (*i).second;
+        }
+      }
+
       const bool hasNoteOnStatus = (e.status & 0b11110000) == 0b10010000;
       const bool hasNoteOffStatus = (e.status & 0b11110000) == 0b10000000;
 
@@ -154,23 +181,24 @@ void MidiViewer::populateNotes() {
         noteOnTimes.insert_or_assign(key, currentTime);
         noteVelocity.insert_or_assign(key, velocity);
       }
+      float startf = static_cast<float>(noteOnTimes.at(key)) /
+                     static_cast<float>(parsed.tickDivision) * currentTempo;
+      float endf = static_cast<float>(currentTime) /
+                   static_cast<float>(parsed.tickDivision) * currentTempo;
       if (isNoteOff) {
         notes_.push_back({.key = key,
                           .velocity = noteVelocity.at(key),
                           .timeStart = noteOnTimes.at(key),
-                          .timeEnd = currentTime});
+                          .timeEnd = currentTime,
+                          .startf = startf,
+                          .endf = endf});
       }
     };
 
-    auto visitor = overload{visitMidi,
-                            [&currentTime](MetaEvent& e) mutable {
-                              currentTime += e.deltaTime;
-                              if (e.status == 0x51) {
-
-                                std::cout << "SET TEMPO" << std::endl;
-                              }
-                            },
-                            [](SysExEvent&) { /* ignore */ }};
+    auto visitor = overload{
+        visitMidi,
+        [&currentTime](MetaEvent& e) mutable { currentTime += e.deltaTime; },
+        [](SysExEvent&) { /* ignore */ }};
 
     for (TrackEvent e : parsed.tracks.at(i).events) {
       std::visit(visitor, e);
@@ -181,15 +209,17 @@ void MidiViewer::populateNotes() {
 void MidiViewer::populateNoteRects() {
   for (const auto& note : notes_) {
     SDL_FRect r{
-        .x = helper::map(static_cast<float>(note.timeStart), 0.f, barSize_, 0.f,
-                         static_cast<float>(width_), false) + padding_,
+        .x = helper::map(note.startf, 0.f, barSize_, 0.f,
+                         static_cast<float>(width_), false) +
+             padding_,
         .y = helper::map(static_cast<float>(note.key),
                          static_cast<float>(lowestNote_.key),
                          static_cast<float>(highestNote_.key),
                          static_cast<float>(height_) - noteHeight_, 0.f) +
              padding_,
-        .w = helper::map(static_cast<float>(note.timeEnd - note.timeStart), 0.f,
-                         barSize_, 0, static_cast<float>(width_)) - padding_ * 2.f,
+        .w = helper::map(note.endf - note.startf, 0.f, barSize_, 0,
+                         static_cast<float>(width_)) -
+             padding_ * 2.f,
         .h = noteHeight_ - padding_ * 2.f};
     noteRects_.push_back(r);
     offsetNoteRects_.push_back(r);
