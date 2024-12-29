@@ -38,7 +38,7 @@ class MidiViewer : public Viewer {
   float padding_;
   float xOffset_, xOffsetMax_, xOffsetMin_;
   float mouseAccel_, mouseAccelDamping_, mouseAccelScaling_;
-  float barSize_;
+  float pageSize_;
   float noteHeight_;
 
   std::vector<SDL_FRect> gridRects_;

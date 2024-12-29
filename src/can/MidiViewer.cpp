@@ -40,10 +40,10 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
       static_cast<float>(height_) / static_cast<float>(inclusiveNoteRange_);
 
   // Page size
-  barSize_ = static_cast<float>(width_) * 10.f;
+  pageSize_ = static_cast<float>(width_) * 10.f;
 
   // Length of MIDI Track in terms of number of bars(pages) it can fit in
-  float trackLengthNormalized = rightMostNote_.endf / (float)barSize_;
+  float trackLengthNormalized = rightMostNote_.endf / pageSize_;
 
   // calculate how far the track can be scrolled
   xOffsetMin_ = -(trackLengthNormalized * static_cast<float>(width_) -
@@ -209,7 +209,7 @@ void MidiViewer::populateNotes() {
 void MidiViewer::populateNoteRects() {
   for (const auto& note : notes_) {
     SDL_FRect r{
-        .x = helper::map(note.startf, 0.f, barSize_, 0.f,
+        .x = helper::map(note.startf, 0.f, pageSize_, 0.f,
                          static_cast<float>(width_), false) +
              padding_,
         .y = helper::map(static_cast<float>(note.key),
@@ -217,7 +217,7 @@ void MidiViewer::populateNoteRects() {
                          static_cast<float>(highestNote_.key),
                          static_cast<float>(height_) - noteHeight_, 0.f) +
              padding_,
-        .w = helper::map(note.endf - note.startf, 0.f, barSize_, 0,
+        .w = helper::map(note.endf - note.startf, 0.f, pageSize_, 0,
                          static_cast<float>(width_)) -
              padding_ * 2.f,
         .h = noteHeight_ - padding_ * 2.f};
