@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.30)
 
+project(can VERSION 0.1.2 LANGUAGES CXX)
+
 include(FetchContent)
 
 # LIBS
@@ -32,8 +34,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
 add_compile_options("$<$<CONFIG:Debug>:-g;-Wall;-Wpedantic;-Wconversion>")
 add_compile_options("$<$<CONFIG:Release>:-O3;-DNDEBUG;-s;-Wall;-Wpedantic>")
-
-project(can VERSION 0.1.1 LANGUAGES CXX)
 
 add_library(canviewers
   src/can/MidiViewer.cpp
