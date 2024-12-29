@@ -24,9 +24,12 @@ Once compiled, simply call `can file/to/open`. Since `can` is probably not yet i
 
 ### MIDI Files
 
-Calling `can` on a midifile will open a scrollable preview of a MIDI file visualized with velocity data on a piano roll grid. Try with examples provided in [`/data/midifiles`](./data/midifiles)
+Calling `can` on a midifile will open a scrollable preview of a MIDI file visualized with velocity data on a piano roll grid. Try with examples provided in [`/data/midifiles`](./data/midifiles). Some screenshots: 
 
-![image](https://github.com/user-attachments/assets/01c861f1-f468-4016-ab6c-2b1209516947)
+![image](https://github.com/user-attachments/assets/c9edea2f-3ada-42e7-a9b3-dc95fcc8c532)
+![image](https://github.com/user-attachments/assets/a6550b5b-993a-4791-848f-fd6dbecd89f0)
+
+
 
 ---
 
