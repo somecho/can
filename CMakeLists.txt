@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.30)
 
-project(can VERSION 0.1.3 LANGUAGES CXX)
+project(can VERSION 0.1.4 LANGUAGES CXX)
 
 include(FetchContent)
 
