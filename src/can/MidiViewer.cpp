@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
-#include <ranges>
 #include <unordered_map>
 
 #include "MidiViewer.hpp"
