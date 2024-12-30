@@ -44,6 +44,8 @@ class MidiViewer : public Viewer {
   std::vector<SDL_FRect> gridRects_;
   std::vector<SDL_FRect> noteRects_;
   std::vector<SDL_FRect> offsetNoteRects_;
+  std::vector<std::pair<SDL_FRect, SDL_Color>> referenceRects_;
+  std::vector<std::pair<SDL_FRect, SDL_Color>> drawnRects_;
   std::vector<float> gridTicks_;
 
   void populateNotes();

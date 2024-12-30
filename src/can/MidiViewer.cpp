@@ -91,6 +91,20 @@ void MidiViewer::update() {
        std::views::zip(noteRects_, offsetNoteRects_)) {
     std::get<1>(rects).x = std::get<0>(rects).x + xOffset_;
   }
+
+  drawnRects_.clear();
+  for (const auto& rectColPair : referenceRects_) {
+    auto r = std::get<0>(rectColPair);
+    float xpos = r.x + xOffset_;
+    float xposEnd = xpos + r.w;
+    auto col = std::get<1>(rectColPair);
+
+    if ((xpos > 0 && xpos < static_cast<float>(width_)) ||
+        (xposEnd > 0 && xposEnd < static_cast<float>(width_))) {
+      drawnRects_.emplace_back(
+          std::pair{SDL_FRect{.x = xpos, .y = r.y, .w = r.w, .h = r.h}, col});
+    }
+  }
 }
 
 void MidiViewer::render(SDL_Renderer* renderer) {
@@ -122,13 +136,18 @@ void MidiViewer::render(SDL_Renderer* renderer) {
   }
 
   // Draw Notes
-  for (auto rects : std::views::zip(notes_, offsetNoteRects_)) {
-    float t = helper::map(std::get<0>(rects).velocity, 0.f, 127.f, 0.f, 1.f);
-    auto [rc, gc, bc] = helper::heatmap(t);
-    SDL_SetRenderDrawColor(renderer, static_cast<Uint8>(rc * 255),
-                           static_cast<Uint8>(gc * 255),
-                           static_cast<Uint8>(bc * 255), 0xFF);
-    SDL_RenderFillRect(renderer, &std::get<1>(rects));
+  /* for (auto rects : std::views::zip(notes_, offsetNoteRects_)) { */
+  /*   float t = helper::map(std::get<0>(rects).velocity, 0.f, 127.f, 0.f, 1.f); */
+  /*   auto [rc, gc, bc] = helper::heatmap(t); */
+  /*   SDL_SetRenderDrawColor(renderer, static_cast<Uint8>(rc * 255), */
+  /*                          static_cast<Uint8>(gc * 255), */
+  /*                          static_cast<Uint8>(bc * 255), 0xFF); */
+  /*   SDL_RenderFillRect(renderer, &std::get<1>(rects)); */
+  /* } */
+  for (const auto& p : drawnRects_) {
+    auto col = std::get<1>(p);
+    SDL_SetRenderDrawColor(renderer, col.r, col.g, col.b, col.a);
+    SDL_RenderFillRect(renderer, &std::get<0>(p));
   }
 };
 
@@ -244,6 +263,14 @@ void MidiViewer::populateNoteRects() {
         .h = noteHeight_ - padding_ * 2.f};
     noteRects_.push_back(r);
     offsetNoteRects_.push_back(r);
+    float t =
+        helper::map(static_cast<float>(note.velocity), 0.f, 127.f, 0.f, 1.f);
+    auto [rc, gc, bc] = helper::heatmap(t);
+    SDL_Color col{.r = static_cast<uint8_t>(rc * 255.f),
+                  .g = static_cast<uint8_t>(gc * 255.f),
+                  .b = static_cast<uint8_t>(bc * 255.f),
+                  .a = 255};
+    referenceRects_.push_back({r, col});
   }
 };
 
