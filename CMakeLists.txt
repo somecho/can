@@ -27,39 +27,39 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(midiparser sdl)
 
-# # FREETYPE
+if(CMAKE_BUILD_TYPE STREQUAL DEBUG)
+  # # FREETYPE
 
-FetchContent_Declare(
+  FetchContent_Declare(
   freetype
   GIT_REPOSITORY https://github.com/freetype/freetype
-  GIT_TAG VER-2-13-3
-)
+  GIT_TAG VER-2-13-3)
 
-FetchContent_MakeAvailable(freetype)
+  FetchContent_MakeAvailable(freetype)
 
-if(NOT EXISTS ${freetype_BINARY_DIR}/libfreetype.a)
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -B ${freetype_BINARY_DIR}
+  if(NOT EXISTS ${freetype_BINARY_DIR}/libfreetype.a)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -B ${freetype_BINARY_DIR}
                 WORKING_DIRECTORY ${freetype_SOURCE_DIR})
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} --build ${freetype_BINARY_DIR}
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} --build ${freetype_BINARY_DIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
+  endif()
 
-list(APPEND CMAKE_PREFIX_PATH ${freetype_BINARY_DIR})
-set(FREETYPE_INCLUDE_DIRS ${freetype_SOURCE_DIR}/include)
+  list(APPEND CMAKE_PREFIX_PATH ${freetype_BINARY_DIR})
+  set(FREETYPE_INCLUDE_DIRS ${freetype_SOURCE_DIR}/include)
 
-# # SDL_TTF
+  # # SDL_TTF
 
-set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+  set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
 
-FetchContent_Declare(
+  FetchContent_Declare(
   sdlttf
   GIT_REPOSITORY https://github.com/libsdl-org/SDL_ttf
   GIT_TAG a71b5fa4033b0124672e0e4f63df0c0e98d9c648
   GIT_SHALLOW TRUE
-  GIT_SUBMODULES ""
-)
+  GIT_SUBMODULES "")
 
-FetchContent_MakeAvailable(sdlttf)
+  FetchContent_MakeAvailable(sdlttf)
+endif()
 
 # PROJECT CONFIGURATIONS
 
@@ -77,8 +77,11 @@ target_link_libraries(canviewers PUBLIC SDL3::SDL3 MidiParser)
 set_property(TARGET canviewers PROPERTY CXX_STANDARD 23)
 set_property(TARGET canviewers PROPERTY CXX_STANDARD_REQUIRED TRUE)
 
-add_executable(can src/can.cpp)
+add_executable(can src/can.cpp src/App.cpp)
 target_compile_features(can PRIVATE cxx_std_23)
-target_link_libraries(can PRIVATE canviewers SDL3_ttf::SDL3_ttf)
 target_include_directories(can PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/fonts)
 target_compile_definitions(can PRIVATE "$<$<CONFIG:Debug>:DEBUG>")
+target_link_libraries(can PRIVATE
+  canviewers
+  "$<$<CONFIG:DEBUG>:SDL3_ttf::SDL3_ttf>"
+)
