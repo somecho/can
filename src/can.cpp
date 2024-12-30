@@ -1,9 +1,14 @@
 #include <SDL3/SDL.h>
-#include <iostream>
+#include <SDL3_ttf/SDL_ttf.h>
+#include <format>
 #include <stdexcept>
 
 #include "can/MidiViewer.hpp"
 #include "can/SDLptr.hpp"
+
+#ifdef DEBUG
+#include "arial.h"
+#endif
 
 class App {
  private:
@@ -11,11 +16,19 @@ class App {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
       throw std::runtime_error(SDL_GetError());
     }
+
+#ifdef DEBUG
+    if (!TTF_Init()) {
+      throw std::runtime_error("Unable to initialize sdl ttf");
+    }
+#endif
   }
 
   std::unique_ptr<Can::Viewer> viewer;
   int width_, height_;
   bool shouldQuit_ = false;
+  uint64_t prevTime_ = 0;
+  float fps_ = 0.f;
 
  public:
   App(std::string fileToOpen) {
@@ -44,11 +57,40 @@ class App {
                             SDL_DestroyRenderer);
 
     SDL_Event e;
+
+#ifdef DEBUG
+    auto fontstream = SDL_IOFromMem(
+        &arialFontData, sizeof(arialFontData) / sizeof(unsigned char));
+    auto font = TTF_OpenFontIO(fontstream, true, 12);
+    if (!font) {
+      throw std::runtime_error(SDL_GetError());
+    }
+#endif
+
     while (!shouldQuit_) {
       SDL_PollEvent(&e);
       handleEvent(e);
       viewer->update();
       viewer->render(r.get());
+
+#ifdef DEBUG
+      uint64_t interval = 10;
+      if (viewer->frameNum % interval == 0) {
+        uint64_t currT = SDL_GetTicks();
+        fps_ = 1000.f / static_cast<float>(currT - prevTime_) *
+               static_cast<float>(interval);
+        prevTime_ = currT;
+      }
+      std::string txt = std::format("{:.2f}", fps_);
+      auto textSurface = TTF_RenderText_Solid(
+          font, txt.data(), txt.size(),
+          SDL_Color{.r = 255, .g = 255, .b = 255, .a = 255});
+      auto tex = SDL_CreateTextureFromSurface(r.get(), textSurface);
+      auto textRect = SDL_FRect{.w = static_cast<float>(tex->w),
+                                .h = static_cast<float>(tex->h)};
+      SDL_RenderTexture(r.get(), tex, nullptr, &textRect);
+#endif
+
       if (!SDL_RenderPresent(r.get())) {
         throw std::runtime_error(SDL_GetError());
       };
