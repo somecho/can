@@ -41,18 +41,24 @@ class MidiViewer : public Viewer {
   float pageSize_;
   float noteHeight_;
 
+  /**
+   * The rects representing the horizontal piano roll grid.
+   */
   std::vector<SDL_FRect> gridRects_;
-  std::vector<SDL_FRect> noteRects_;
-  std::vector<SDL_FRect> offsetNoteRects_;
+
+  /**
+   * The collection of all midi notes represented as rects.
+   */
   std::vector<std::pair<SDL_FRect, SDL_Color>> referenceRects_;
+
+  /**
+   * Updated every time `update()` is called. Filters `referenceRects_` out
+   * to only rects that are visible.
+   */
   std::vector<std::pair<SDL_FRect, SDL_Color>> drawnRects_;
   std::vector<float> gridTicks_;
 
   void populateNotes();
-
-  /**
-   * Fills up `noteRects_` with drawable geometry based on data in `notes_`.
-   */
   void populateNoteRects();
 };
 

@@ -86,12 +86,6 @@ void MidiViewer::update() {
   xOffset_ += mouseAccel_ * mouseAccelScaling_;
   xOffset_ = std::clamp(xOffset_, xOffsetMin_, xOffsetMax_);
 
-  // update note rect positions with offset data
-  for (std::tuple<SDL_FRect&, SDL_FRect&> rects :
-       std::views::zip(noteRects_, offsetNoteRects_)) {
-    std::get<1>(rects).x = std::get<0>(rects).x + xOffset_;
-  }
-
   drawnRects_.clear();
   for (const auto& rectColPair : referenceRects_) {
     auto r = std::get<0>(rectColPair);
@@ -136,14 +130,6 @@ void MidiViewer::render(SDL_Renderer* renderer) {
   }
 
   // Draw Notes
-  /* for (auto rects : std::views::zip(notes_, offsetNoteRects_)) { */
-  /*   float t = helper::map(std::get<0>(rects).velocity, 0.f, 127.f, 0.f, 1.f); */
-  /*   auto [rc, gc, bc] = helper::heatmap(t); */
-  /*   SDL_SetRenderDrawColor(renderer, static_cast<Uint8>(rc * 255), */
-  /*                          static_cast<Uint8>(gc * 255), */
-  /*                          static_cast<Uint8>(bc * 255), 0xFF); */
-  /*   SDL_RenderFillRect(renderer, &std::get<1>(rects)); */
-  /* } */
   for (const auto& p : drawnRects_) {
     auto col = std::get<1>(p);
     SDL_SetRenderDrawColor(renderer, col.r, col.g, col.b, col.a);
@@ -261,8 +247,6 @@ void MidiViewer::populateNoteRects() {
                          static_cast<float>(width_)) -
              padding_ * 2.f,
         .h = noteHeight_ - padding_ * 2.f};
-    noteRects_.push_back(r);
-    offsetNoteRects_.push_back(r);
     float t =
         helper::map(static_cast<float>(note.velocity), 0.f, 127.f, 0.f, 1.f);
     auto [rc, gc, bc] = helper::heatmap(t);
