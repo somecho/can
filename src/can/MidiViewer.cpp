@@ -161,21 +161,24 @@ void MidiViewer::populateNotes() {
 
   std::unordered_map<uint8_t, uint32_t> noteOnTimes;
   std::unordered_map<uint8_t, uint8_t> noteVelocity;
-  // tempo in milliseconds
-  std::map<uint32_t, float> tempoMap;
+  struct {
+    std::vector<uint32_t> time;
+    // tempo in milliseconds
+    std::vector<float> tempo;
+  } tempoMap;
 
   //populate tempoMap
   for (size_t i = 0; i < parsed.tracks.size(); i++) {
     uint32_t currentTime = 0;
     for (TrackEvent e : parsed.tracks.at(i).events) {
-      if (std::holds_alternative<MetaEvent>(e)) {
-        auto meta = std::get<MetaEvent>(e);
-        currentTime += meta.deltaTime;
-        if (meta.status == 0x51) {  // Set Tempo Event
+      if (const MetaEvent* meta = std::get_if<MetaEvent>(&e)) {
+        currentTime += meta->deltaTime;
+        if (meta->status == 0x51) {  // Set Tempo Event
           uint32_t tempo =
-              0u | meta.data[0] << 16 | meta.data[1] << 8 | meta.data[2];
+              0u | meta->data[0] << 16 | meta->data[1] << 8 | meta->data[2];
           float tempof = static_cast<float>(tempo) / 1000.f;
-          tempoMap.insert_or_assign(currentTime, tempof);
+          tempoMap.time.push_back(currentTime);
+          tempoMap.tempo.push_back(tempof);
         }
       }
     }
@@ -188,9 +191,9 @@ void MidiViewer::populateNotes() {
       if (const MIDIEvent* event = std::get_if<MIDIEvent>(&e)) {
         currentTime += event->deltaTime;
         // get currentTempo;
-        for (auto i = tempoMap.begin(); i != tempoMap.end(); i++) {
-          if (currentTime >= (*i).first) {
-            currentTempo = (*i).second;
+        for (size_t i = 0; i < tempoMap.time.size(); i++) {
+          if (currentTime >= tempoMap.time[i]) {
+            currentTempo = tempoMap.tempo[i];
           }
         }
 
