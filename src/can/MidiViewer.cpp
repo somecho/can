@@ -1,15 +1,8 @@
 #include <algorithm>
 #include <cmath>
-#include <map>
-#include <unordered_map>
 
 #include "MidiViewer.hpp"
 #include "helper.hpp"
-
-template <class... Ts>
-struct overload : Ts... {
-  using Ts::operator()...;
-};
 
 namespace Can {
 namespace Viewers {
@@ -23,25 +16,28 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
       mouseAccel_(0.f) {
   populateNotes();
 
-  auto cmpy = [](const Viewable::MIDINote& a, const Viewable::MIDINote& b) {
-    return a.key < b.key;
-  };
-  auto cmpx = [](const Viewable::MIDINote& a, const Viewable::MIDINote& b) {
-    return a.start > b.start;
-  };
-
   // calculate bounds of viewer based on midi data
-  highestNote_ = *std::max_element(notes_.begin(), notes_.end(), cmpy);
-  lowestNote_ = *std::min_element(notes_.begin(), notes_.end(), cmpy);
-  rightMostNote_ = *std::min_element(notes_.begin(), notes_.end(), cmpx);
-  inclusiveNoteRange_ = highestNote_.key - lowestNote_.key + 1;
+  for (size_t i = 0; i < allNotes_.key.size(); i++) {
+    auto k = allNotes_.key[i];
+    if (k < lowestKey_) {
+      lowestKey_ = k;
+    }
+    if (k > highestKey_) {
+      highestKey_ = k;
+    }
+    if (allNotes_.end[i] > totalMillis_) {
+      totalMillis_ = allNotes_.end[i];
+    }
+  }
+  inclusiveNoteRange_ = highestKey_ - lowestKey_ + 1;
   noteHeight_ =
       static_cast<float>(height_) / static_cast<float>(inclusiveNoteRange_);
 
   pageSize_ = static_cast<float>(width_) * 10.f;
 
   // Length of MIDI Track in terms of number of bars(pages) it can fit in
-  float trackLengthNormalized = rightMostNote_.end / pageSize_;
+  /* float trackLengthNormalized = rightMostNote_.end / pageSize_; */
+  float trackLengthNormalized = totalMillis_ / pageSize_;
 
   // calculate how far the track can be scrolled
   xOffsetMin_ = -(trackLengthNormalized * static_cast<float>(width_) -
@@ -67,7 +63,7 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
   // populate gridTicks_
   float interval = 1.f * 1000.f;  // 10 seconds
   unsigned int numTicks =
-      static_cast<unsigned int>(std::floor(rightMostNote_.end / interval));
+      static_cast<unsigned int>(std::floor(totalMillis_ / interval));
   numTicks = std::max(
       {numTicks, static_cast<unsigned int>(std::floor(pageSize_ / interval))});
   for (auto i = 1u; i <= numTicks; i++) {
@@ -108,7 +104,7 @@ void MidiViewer::render(SDL_Renderer* renderer) {
 
 void MidiViewer::drawPianoRoll(SDL_Renderer* renderer) {
   for (auto i = 0u; i < inclusiveNoteRange_; i++) {
-    int id = (i + lowestNote_.key) % 12;
+    int id = (i + lowestKey_) % 12;
     if (id == 1 || id == 3 || id == 6 || id == 8 || id == 10) {
       SDL_SetRenderDrawColor(renderer, 5, 5, 5, 255);
     } else {
@@ -184,7 +180,13 @@ void MidiViewer::populateNotes() {
   }
 
   std::vector<std::thread> threads;
-  std::vector<std::vector<Viewable::MIDINote>> tempNotes;
+  struct SOA {
+    std::vector<uint8_t> key;
+    std::vector<uint8_t> vel;
+    std::vector<float> start;
+    std::vector<float> end;
+  };
+  std::vector<SOA> tempNotes;
   tempNotes.resize(parsed.tracks.size());
   for (size_t i = 0; i < parsed.tracks.size(); i++) {
     threads.push_back(std::thread([i, parsed, tempoMap, tickf,
@@ -220,11 +222,10 @@ void MidiViewer::populateNotes() {
           float start = static_cast<float>(noteOn[key]) / tickf * currentTempo;
           float end = static_cast<float>(currentTime) / tickf * currentTempo;
           if (isNoteOff) {
-            /* notes_.push_back({.key = key, */
-            tempNotes[i].push_back({.key = key,
-                                    .velocity = noteVel[key],
-                                    .start = start,
-                                    .end = end});
+            tempNotes[i].key.push_back(key);
+            tempNotes[i].vel.push_back(noteVel[key]);
+            tempNotes[i].start.push_back(start);
+            tempNotes[i].end.push_back(end);
           }
         }
         if (const MetaEvent* event = std::get_if<MetaEvent>(&e)) {
@@ -237,26 +238,33 @@ void MidiViewer::populateNotes() {
     t.join();
   }
   for (auto& noteCol : tempNotes) {
-    notes_.insert(notes_.end(), noteCol.begin(), noteCol.end());
+    allNotes_.key.insert(allNotes_.key.end(), noteCol.key.begin(),
+                         noteCol.key.end());
+    allNotes_.vel.insert(allNotes_.vel.end(), noteCol.vel.begin(),
+                         noteCol.vel.end());
+    allNotes_.start.insert(allNotes_.start.end(), noteCol.start.begin(),
+                           noteCol.start.end());
+    allNotes_.end.insert(allNotes_.end.end(), noteCol.end.begin(),
+                         noteCol.end.end());
   }
 }
 
 void MidiViewer::populateNoteRects() {
-  for (const auto& note : notes_) {
-    SDL_FRect r{
-        .x = helper::map(note.start, 0.f, pageSize_, 0.f, widthf_, false) +
-             padding_,
-        .y = helper::map(static_cast<float>(note.key),
-                         static_cast<float>(lowestNote_.key),
-                         static_cast<float>(highestNote_.key),
-                         heightf_ - noteHeight_, 0.f) +
-             padding_,
-        .w = helper::map(note.end - note.start, 0.f, pageSize_, 0, widthf_) -
-             padding_ * 2.f,
-        .h = noteHeight_ - padding_ * 2.f};
-    float t =
-        helper::map(static_cast<float>(note.velocity), 0.f, 127.f, 0.f, 1.f);
-    auto [rc, gc, bc] = helper::heatmap(t);
+  for (size_t i = 0; i < allNotes_.key.size(); i++) {
+    SDL_FRect r{.x = helper::map(allNotes_.start[i], 0.f, pageSize_, 0.f,
+                                 widthf_, false) +
+                     padding_,
+                .y = helper::map(static_cast<float>(allNotes_.key[i]),
+                                 static_cast<float>(lowestKey_),
+                                 static_cast<float>(highestKey_),
+                                 heightf_ - noteHeight_, 0.f) +
+                     padding_,
+                .w = helper::map(allNotes_.end[i] - allNotes_.start[i], 0.f,
+                                 pageSize_, 0, widthf_) -
+                     padding_ * 2.f,
+                .h = noteHeight_ - padding_ * 2.f};
+    auto [rc, gc, bc] =
+        helper::heatmap(static_cast<float>(allNotes_.vel[i]) / 127.f);
     SDL_Color col{.r = static_cast<uint8_t>(rc * 255.f),
                   .g = static_cast<uint8_t>(gc * 255.f),
                   .b = static_cast<uint8_t>(bc * 255.f),

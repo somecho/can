@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 
-#include "Viewable.hpp"
 #include "Viewer.hpp"
 
 namespace Can {
@@ -22,10 +21,15 @@ class MidiViewer : public Viewer {
   void onMouseDown(const SDL_Event& event) override;
 
  private:
-  std::vector<Viewable::MIDINote> notes_;
-  Viewable::MIDINote highestNote_;
-  Viewable::MIDINote lowestNote_;
-  Viewable::MIDINote rightMostNote_;
+  struct {
+    std::vector<uint8_t> key;
+    std::vector<uint8_t> vel;
+    std::vector<float> start;
+    std::vector<float> end;
+  } allNotes_;
+  uint8_t highestKey_ = 0;
+  uint8_t lowestKey_ = UINT8_MAX;
+  float totalMillis_ = 0;
 
   // The number of discrete notes from the lowest to the highest note including
   // both. E.g. The inclusive note range of an octave from C1 - C2 is 13.

@@ -4,3 +4,4 @@ buildRelease/
 profile/
 out/
 .cache/
+**/*.out
