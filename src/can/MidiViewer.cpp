@@ -34,13 +34,11 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
   // calculate bounds of viewer based on midi data
   highestNote_ = *std::max_element(notes_.begin(), notes_.end(), cmpy);
   lowestNote_ = *std::min_element(notes_.begin(), notes_.end(), cmpy);
-  leftMostNote_ = *std::max_element(notes_.begin(), notes_.end(), cmpx);
   rightMostNote_ = *std::min_element(notes_.begin(), notes_.end(), cmpx);
   inclusiveNoteRange_ = highestNote_.key - lowestNote_.key + 1;
   noteHeight_ =
       static_cast<float>(height_) / static_cast<float>(inclusiveNoteRange_);
 
-  // Page size
   pageSize_ = static_cast<float>(width_) * 10.f;
 
   // Length of MIDI Track in terms of number of bars(pages) it can fit in
@@ -61,9 +59,8 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
     gridRects_.push_back(
         {.x = 0,
          .y = helper::map(static_cast<float>(i), 0,
-                          static_cast<float>(inclusiveNoteRange_),
-                          static_cast<float>(height_), 0),
-         .w = (float)width_,
+                          static_cast<float>(inclusiveNoteRange_), heightf_, 0),
+         .w = widthf_,
          .h = noteHeight_});
   }
 
@@ -75,7 +72,7 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
       {numTicks, static_cast<unsigned int>(std::floor(pageSize_ / interval))});
   for (auto i = 1u; i <= numTicks; i++) {
     float x = helper::map(static_cast<float>(i) * interval, 0, pageSize_, 0,
-                          static_cast<float>(width_), false);
+                          widthf_, false);
     gridTicks_.emplace_back(x);
   }
 }
@@ -92,9 +89,7 @@ void MidiViewer::update() {
     float xpos = r.x + xOffset_;
     float xposEnd = xpos + r.w;
     auto col = std::get<1>(rectColPair);
-
-    if ((xpos > 0 && xpos < static_cast<float>(width_)) ||
-        (xposEnd > 0 && xposEnd < static_cast<float>(width_))) {
+    if ((xpos > 0 && xpos < widthf_) || (xposEnd > 0 && xposEnd < widthf_)) {
       drawnRects_.emplace_back(
           std::pair{SDL_FRect{.x = xpos, .y = r.y, .w = r.w, .h = r.h}, col});
     }
@@ -104,8 +99,12 @@ void MidiViewer::update() {
 void MidiViewer::render(SDL_Renderer* renderer) {
   SDL_SetRenderDrawColor(renderer, 0x0, 0x0, 0x0, 0xFF);
   SDL_RenderClear(renderer);
+  drawPianoRoll(renderer);
+  drawTimeTicks(renderer);
+  drawMIDINotes(renderer);
+};
 
-  // Draw Grid
+void MidiViewer::drawPianoRoll(SDL_Renderer* renderer) {
   for (auto i = 0u; i < inclusiveNoteRange_; i++) {
     int id = (i + lowestNote_.key) % 12;
     if (id == 1 || id == 3 || id == 6 || id == 8 || id == 10) {
@@ -115,21 +114,23 @@ void MidiViewer::render(SDL_Renderer* renderer) {
     }
     SDL_RenderFillRect(renderer, &gridRects_.at(i));
     SDL_SetRenderDrawColor(renderer, 25, 25, 25, 255);
-    SDL_RenderLine(renderer, 0, gridRects_.at(i).y, static_cast<float>(width_),
+    SDL_RenderLine(renderer, 0, gridRects_.at(i).y, widthf_,
                    gridRects_.at(i).y);
   }
+}
 
-  /* for (const auto& tick : gridTicks_) { */
+void MidiViewer::drawTimeTicks(SDL_Renderer* renderer) {
   for (size_t i = 0; i < gridTicks_.size(); i++) {
     SDL_SetRenderDrawColor(renderer, 25, 25, 25, 255);
-    if ((i + 6) % 5 == 0) {
+    if ((i + 6) % 5 == 0) {  // Accent every 5th interval
       SDL_SetRenderDrawColor(renderer, 70, 70, 80, 255);
     }
-    SDL_RenderLine(renderer, gridTicks_[i] + xOffset_, 0,
-                   gridTicks_[i] + xOffset_, static_cast<float>(height_));
+    auto xPos = gridTicks_.at(i) + xOffset_;
+    SDL_RenderLine(renderer, xPos, 0, xPos, heightf_);
   }
+}
 
-  // Draw Notes
+void MidiViewer::drawMIDINotes(SDL_Renderer* renderer) {
   for (const auto& p : drawnRects_) {
     auto col = std::get<1>(p);
     SDL_SetRenderDrawColor(renderer, col.r, col.g, col.b, col.a);
@@ -235,16 +236,14 @@ void MidiViewer::populateNotes() {
 void MidiViewer::populateNoteRects() {
   for (const auto& note : notes_) {
     SDL_FRect r{
-        .x = helper::map(note.start, 0.f, pageSize_, 0.f,
-                         static_cast<float>(width_), false) +
+        .x = helper::map(note.start, 0.f, pageSize_, 0.f, widthf_, false) +
              padding_,
         .y = helper::map(static_cast<float>(note.key),
                          static_cast<float>(lowestNote_.key),
                          static_cast<float>(highestNote_.key),
-                         static_cast<float>(height_) - noteHeight_, 0.f) +
+                         heightf_ - noteHeight_, 0.f) +
              padding_,
-        .w = helper::map(note.end - note.start, 0.f, pageSize_, 0,
-                         static_cast<float>(width_)) -
+        .w = helper::map(note.end - note.start, 0.f, pageSize_, 0, widthf_) -
              padding_ * 2.f,
         .h = noteHeight_ - padding_ * 2.f};
     float t =
