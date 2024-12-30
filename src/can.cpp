@@ -67,10 +67,15 @@ class App {
     }
 #endif
 
+    auto t = std::thread([this]() {
+      while (!shouldQuit_) {
+        viewer->update();
+      }
+    });
+
     while (!shouldQuit_) {
       SDL_PollEvent(&e);
       handleEvent(e);
-      viewer->update();
       viewer->render(r.get());
 
 #ifdef DEBUG
@@ -98,6 +103,7 @@ class App {
       };
       ++viewer->frameNum;
     }
+    t.join();
   }
 
   void handleEvent(const SDL_Event& e) {

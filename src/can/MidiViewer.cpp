@@ -59,7 +59,8 @@ MidiViewer::MidiViewer(std::string fileToView, int width, int height)
     gridRects_.push_back(
         {.x = 0,
          .y = helper::map(static_cast<float>(i), 0,
-                          static_cast<float>(inclusiveNoteRange_), heightf_, 0),
+                          static_cast<float>(inclusiveNoteRange_),
+                          heightf_ - noteHeight_, -noteHeight_),
          .w = widthf_,
          .h = noteHeight_});
   }
@@ -83,17 +84,19 @@ void MidiViewer::update() {
   xOffset_ += mouseAccel_ * mouseAccelScaling_;
   xOffset_ = std::clamp(xOffset_, xOffsetMin_, xOffsetMax_);
 
-  drawnRects_.clear();
+  size_t writeBuffer = 1 - currentBuffer;
+  drawnRects_[writeBuffer].clear();
   for (const auto& rectColPair : referenceRects_) {
     auto r = std::get<0>(rectColPair);
     float xpos = r.x + xOffset_;
     float xposEnd = xpos + r.w;
     auto col = std::get<1>(rectColPair);
     if ((xpos > 0 && xpos < widthf_) || (xposEnd > 0 && xposEnd < widthf_)) {
-      drawnRects_.emplace_back(
+      drawnRects_[writeBuffer].emplace_back(
           std::pair{SDL_FRect{.x = xpos, .y = r.y, .w = r.w, .h = r.h}, col});
     }
   }
+  currentBuffer = writeBuffer;
 }
 
 void MidiViewer::render(SDL_Renderer* renderer) {
@@ -131,7 +134,7 @@ void MidiViewer::drawTimeTicks(SDL_Renderer* renderer) {
 }
 
 void MidiViewer::drawMIDINotes(SDL_Renderer* renderer) {
-  for (const auto& p : drawnRects_) {
+  for (const auto& p : drawnRects_[currentBuffer]) {
     auto col = std::get<1>(p);
     SDL_SetRenderDrawColor(renderer, col.r, col.g, col.b, col.a);
     SDL_RenderFillRect(renderer, &std::get<0>(p));

@@ -45,8 +45,9 @@ class MidiViewer : public Viewer {
   std::vector<std::pair<SDL_FRect, SDL_Color>> referenceRects_;
 
   // Updated every time `update()` is called. Filters `referenceRects_` out
-  // to only rects that are visible.
-  std::vector<std::pair<SDL_FRect, SDL_Color>> drawnRects_;
+  // to only rects that are visible. Double buffered.
+  std::vector<std::pair<SDL_FRect, SDL_Color>> drawnRects_[2];
+  size_t currentBuffer = 0;
   std::vector<float> gridTicks_;
 
   void populateNotes();
