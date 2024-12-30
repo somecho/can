@@ -52,6 +52,26 @@ class App {
 
   ~App() { SDL_Quit(); }
 
+  void drawFps(SDL_Renderer* r, TTF_Font* font) {
+    uint64_t interval = 10;
+    if (viewer->frameNum % interval == 0) {
+      uint64_t currT = SDL_GetTicks();
+      fps_ = 1000.f / static_cast<float>(currT - prevTime_) *
+             static_cast<float>(interval);
+      prevTime_ = currT;
+    }
+    std::string txt = std::format("{:.2f}", fps_);
+    auto textSurface =
+        TTF_RenderText_Solid(font, txt.data(), txt.size(),
+                             SDL_Color{.r = 255, .g = 255, .b = 255, .a = 255});
+    auto tex = SDL_CreateTextureFromSurface(r, textSurface);
+    auto textRect = SDL_FRect{.w = static_cast<float>(tex->w),
+                              .h = static_cast<float>(tex->h)};
+    SDL_RenderTexture(r, tex, nullptr, &textRect);
+    SDL_DestroyTexture(tex);
+    SDL_DestroySurface(textSurface);
+  }
+
   void run() {
     Can::SDLptr::Window w(
         SDL_CreateWindow("can", width_, height_, SDL_WINDOW_UTILITY),
@@ -73,39 +93,35 @@ class App {
 
     auto t = std::thread([this]() {
       while (!shouldQuit_) {
+        uint64_t start = SDL_GetTicks();
         viewer->update();
+        int64_t end = static_cast<int64_t>(SDL_GetTicks() - start);
+        int64_t rem = 9 - end;
+        if (rem > 0) {
+          SDL_Delay(static_cast<uint32_t>(rem));
+        }
       }
     });
 
     while (!shouldQuit_) {
+      uint64_t start = SDL_GetTicks();
       SDL_PollEvent(&e);
       handleEvent(e);
       viewer->render(r.get());
 
 #ifdef DEBUG
-      uint64_t interval = 10;
-      if (viewer->frameNum % interval == 0) {
-        uint64_t currT = SDL_GetTicks();
-        fps_ = 1000.f / static_cast<float>(currT - prevTime_) *
-               static_cast<float>(interval);
-        prevTime_ = currT;
-      }
-      std::string txt = std::format("{:.2f}", fps_);
-      auto textSurface = TTF_RenderText_Solid(
-          font, txt.data(), txt.size(),
-          SDL_Color{.r = 255, .g = 255, .b = 255, .a = 255});
-      auto tex = SDL_CreateTextureFromSurface(r.get(), textSurface);
-      auto textRect = SDL_FRect{.w = static_cast<float>(tex->w),
-                                .h = static_cast<float>(tex->h)};
-      SDL_RenderTexture(r.get(), tex, nullptr, &textRect);
-      SDL_DestroyTexture(tex);
-      SDL_DestroySurface(textSurface);
+      drawFps(r.get(), font);
 #endif
 
       if (!SDL_RenderPresent(r.get())) {
         throw std::runtime_error(SDL_GetError());
       };
       ++viewer->frameNum;
+      int64_t end = static_cast<int64_t>(SDL_GetTicks() - start);
+      int64_t rem = 9 - end;
+      if (rem > 0) {
+        SDL_Delay(static_cast<uint32_t>(rem));
+      }
     }
     t.join();
   }
