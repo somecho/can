@@ -183,54 +183,49 @@ void MidiViewer::populateNotes() {
 
   for (size_t i = 0; i < parsed.tracks.size(); i++) {
     uint32_t currentTime = 0;
-    float currentTempo;
+    float currentTempo = 0;
+    for (const TrackEvent& e : parsed.tracks.at(i).events) {
+      if (const MIDIEvent* event = std::get_if<MIDIEvent>(&e)) {
+        currentTime += event->deltaTime;
+        // get currentTempo;
+        for (auto i = tempoMap.begin(); i != tempoMap.end(); i++) {
+          if (currentTime >= (*i).first) {
+            currentTempo = (*i).second;
+          }
+        }
 
-    auto visitMidi = [&currentTime, &noteOnTimes, &noteVelocity, &currentTempo,
-                      tempoMap, this, parsed](MIDIEvent& e) mutable {
-      currentTime += e.deltaTime;
-      // get currentTempo;
-      for (auto i = tempoMap.begin(); i != tempoMap.end(); i++) {
-        if (currentTime >= (*i).first) {
-          currentTempo = (*i).second;
+        const bool hasNoteOnStatus = (event->status & 0b11110000) == 0b10010000;
+        const bool hasNoteOffStatus =
+            (event->status & 0b11110000) == 0b10000000;
+
+        if (!(hasNoteOnStatus || hasNoteOffStatus)) {
+          continue;
+        }
+
+        const uint8_t key = event->data.at(0);
+        const uint8_t velocity = event->data.at(1);
+        const bool isNoteOn = hasNoteOnStatus && velocity > 0;
+        const bool isNoteOff =
+            (hasNoteOnStatus && velocity == 0) || hasNoteOffStatus;
+
+        if (isNoteOn) {
+          noteOnTimes.insert_or_assign(key, currentTime);
+          noteVelocity.insert_or_assign(key, velocity);
+        }
+        float start = static_cast<float>(noteOnTimes.at(key)) /
+                      static_cast<float>(parsed.tickDivision) * currentTempo;
+        float end = static_cast<float>(currentTime) /
+                    static_cast<float>(parsed.tickDivision) * currentTempo;
+        if (isNoteOff) {
+          notes_.push_back({.key = key,
+                            .velocity = noteVelocity.at(key),
+                            .start = start,
+                            .end = end});
         }
       }
-
-      const bool hasNoteOnStatus = (e.status & 0b11110000) == 0b10010000;
-      const bool hasNoteOffStatus = (e.status & 0b11110000) == 0b10000000;
-
-      if (!(hasNoteOnStatus || hasNoteOffStatus)) {
-        return;
+      if (const MetaEvent* event = std::get_if<MetaEvent>(&e)) {
+        currentTime += event->deltaTime;
       }
-
-      const uint8_t key = e.data.at(0);
-      const uint8_t velocity = e.data.at(1);
-      const bool isNoteOn = hasNoteOnStatus && velocity > 0;
-      const bool isNoteOff =
-          (hasNoteOnStatus && velocity == 0) || hasNoteOffStatus;
-
-      if (isNoteOn) {
-        noteOnTimes.insert_or_assign(key, currentTime);
-        noteVelocity.insert_or_assign(key, velocity);
-      }
-      float start = static_cast<float>(noteOnTimes.at(key)) /
-                    static_cast<float>(parsed.tickDivision) * currentTempo;
-      float end = static_cast<float>(currentTime) /
-                  static_cast<float>(parsed.tickDivision) * currentTempo;
-      if (isNoteOff) {
-        notes_.push_back({.key = key,
-                          .velocity = noteVelocity.at(key),
-                          .start = start,
-                          .end = end});
-      }
-    };
-
-    auto visitor = overload{
-        visitMidi,
-        [&currentTime](MetaEvent& e) mutable { currentTime += e.deltaTime; },
-        [](SysExEvent&) { /* ignore */ }};
-
-    for (TrackEvent e : parsed.tracks.at(i).events) {
-      std::visit(visitor, e);
     }
   }
 }
