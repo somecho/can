@@ -1,6 +1,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <format>
+#include <iostream>
 #include <stdexcept>
 
 #include "can/MidiViewer.hpp"
@@ -44,6 +45,9 @@ class App {
     // If MIDI File
     viewer = std::make_unique<Can::Viewers::MidiViewer>(
         Can::Viewers::MidiViewer(fileToOpen, width_, height_));
+#ifdef DEBUG
+    std::cout << "Startup time: " << SDL_GetTicks() << "ms" << std::endl;
+#endif
   }
 
   ~App() { SDL_Quit(); }
@@ -131,5 +135,7 @@ class App {
 
 int main(int argc, char* argv[]) {
   App app(argv[1]);
+#ifndef PROFILE_STARTUP
   app.run();
+#endif
 }

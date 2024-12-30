@@ -1,5 +1,6 @@
 tmp/
 build/
 buildRelease/
+profile/
 out/
 .cache/
