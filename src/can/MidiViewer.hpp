@@ -26,6 +26,7 @@ class MidiViewer : public Viewer {
     std::vector<uint8_t> vel;
     std::vector<float> start;
     std::vector<float> end;
+    size_t size = 0;
   } allNotes_;
   uint8_t highestKey_ = 0;
   uint8_t lowestKey_ = UINT8_MAX;
@@ -46,7 +47,11 @@ class MidiViewer : public Viewer {
   std::vector<SDL_FRect> gridRects_;
 
   // The collection of all midi notes represented as rects.
-  std::vector<std::pair<SDL_FRect, SDL_Color>> referenceRects_;
+  struct {
+    std::vector<SDL_FRect> rect;
+    std::vector<SDL_Color> col;
+    size_t size = 0;
+  } refs_;
 
   // Updated every time `update()` is called. Filters `referenceRects_` out
   // to only rects that are visible. Double buffered.

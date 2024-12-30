@@ -2,6 +2,7 @@ tmp/
 build/
 buildRelease/
 profile/
+profileRelease/
 out/
 .cache/
 **/*.out
