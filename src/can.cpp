@@ -89,6 +89,8 @@ class App {
       auto textRect = SDL_FRect{.w = static_cast<float>(tex->w),
                                 .h = static_cast<float>(tex->h)};
       SDL_RenderTexture(r.get(), tex, nullptr, &textRect);
+      SDL_DestroyTexture(tex);
+      SDL_DestroySurface(textSurface);
 #endif
 
       if (!SDL_RenderPresent(r.get())) {
